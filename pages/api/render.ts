@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import sharp from "sharp";
 import path from "path";
+import fs from "fs";
 import { provinces, districts } from "../../data/locations";
 
 function getLocationText(provinceId: number, districtId: number) {
@@ -37,9 +38,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const pid = Number(req.body?.provinceId);
     const did = Number(req.body?.districtId);
-    if (!Number.isFinite(pid) || !Number.isFinite(did)) {
-      return res.status(400).send("Geçersiz il/ilçe");
-    }
+    if (!Number.isFinite(pid) || !Number.isFinite(did)) return res.status(400).send("Geçersiz il/ilçe");
 
     const text = getLocationText(pid, did);
 
@@ -48,7 +47,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const width = meta.width ?? 1080;
     const height = meta.height ?? 1080;
 
-    // Yazı alanı (alt bant) – gerekirse oranlarla ince ayar yapılır
+    // Yazı alanı (alt bant)
     const rect = {
       x: Math.round(width * 0.10),
       y: Math.round(height * 0.88),
@@ -56,53 +55,66 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       h: Math.round(height * 0.08),
     };
 
-    // 1-2 satır hedefle
+    // Font dosyası (Bold)
+    const fontFile = path.join(process.cwd(), "public/fonts/RedHatDisplay-Bold.ttf");
+    if (!fs.existsSync(fontFile)) {
+      return res.status(500).send("Font bulunamadı: public/fonts/RedHatDisplay-Bold.ttf");
+    }
+
+    // 1-2 satır
     let lines = text.length > 16 ? wrapText(text, 16).slice(0, 2) : [text];
     if (lines.length > 2) lines = lines.slice(0, 2);
 
-    // Font boyutu (basit deterministik)
+    // font boyutu (basit)
     const fontSizes = [64, 56, 48, 42];
-    let chosen = fontSizes[0];
-    if (text.length > 20) chosen = fontSizes[1];
-    if (text.length > 26) chosen = fontSizes[2];
-    if (text.length > 32) chosen = fontSizes[3];
+    let fontSize = fontSizes[0];
+    if (text.length > 20) fontSize = fontSizes[1];
+    if (text.length > 26) fontSize = fontSizes[2];
+    if (text.length > 32) fontSize = fontSizes[3];
 
-    // SVG overlay (font embed KULLANMIYORUZ) — sadece text basıyoruz.
-    // Eğer bu adımda da kutucuk görürsen, bir sonraki adım "Pango + yerel font dosyası"
-    // yaklaşımı (veya PNG text render) ile kesin çözüm yaparız.
-    const lineHeight = Math.round(chosen * 1.15);
-    const totalH = lineHeight * lines.length;
-    const startY = rect.y + Math.round((rect.h - totalH) / 2) + Math.round(lineHeight / 2);
-    const centerX = rect.x + Math.round(rect.w / 2);
+    // Pango ile text render: font’u "dosyadan" base64 embed ediyoruz (Pango bunu düzgün çözüyor)
+    const fontBase64 = fs.readFileSync(fontFile).toString("base64");
 
-    const tspans = lines
-      .map((ln, i) => {
-        const y = startY + i * lineHeight;
-        return `<tspan x="${centerX}" y="${y}">${escapeXml(ln)}</tspan>`;
-      })
-      .join("");
+    const pangoSvg = `
+      <svg width="${rect.w}" height="${rect.h}" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <style type="text/css">
+            @font-face {
+              font-family: 'RedHatDisplay';
+              src: url("data:font/ttf;base64,${fontBase64}") format("truetype");
+              font-weight: 700;
+            }
+          </style>
+        </defs>
 
-    const textSvg = `
-      <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-        <style>
-          .t {
-            font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-            font-weight: 800;
-            font-size: ${chosen}px;
-            fill: #ffffff;
-            stroke: #000000;
-            stroke-width: 6px;
-            paint-order: stroke fill;
-          }
-        </style>
-        <text class="t" text-anchor="middle" dominant-baseline="middle">
-          ${tspans}
+        <!-- Arka plan şeffaf, sadece yazı -->
+        <rect x="0" y="0" width="${rect.w}" height="${rect.h}" fill="transparent"/>
+
+        <text x="${Math.round(rect.w / 2)}" y="${Math.round(rect.h / 2)}"
+              text-anchor="middle" dominant-baseline="middle"
+              font-family="RedHatDisplay"
+              font-weight="700"
+              font-size="${fontSize}"
+              fill="#ffffff"
+              stroke="#000000"
+              stroke-width="6"
+              paint-order="stroke fill">
+          ${lines.map((ln, i) => {
+            const dy = (i - (lines.length - 1) / 2) * Math.round(fontSize * 1.15);
+            return `<tspan x="${Math.round(rect.w / 2)}" dy="${i === 0 ? dy : Math.round(fontSize * 1.15)}">${escapeXml(ln)}</tspan>`;
+          }).join("")}
         </text>
       </svg>
     `;
 
+    // Text overlay’i ayrı render et (şeffaf PNG)
+    const textPng = await sharp(Buffer.from(pangoSvg))
+      .png()
+      .toBuffer();
+
+    // Template üzerine bas
     const out = await sharp(templatePath)
-      .composite([{ input: Buffer.from(textSvg), top: 0, left: 0 }])
+      .composite([{ input: textPng, top: rect.y, left: rect.x }])
       .png({ compressionLevel: 9 })
       .toBuffer();
 
@@ -110,7 +122,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.setHeader("Content-Disposition", `attachment; filename="gorsel-${pid}-${did}.png"`);
     res.status(200).send(out);
   } catch (e: any) {
-    // Hata metnini frontend’de görebilmek için:
     res.status(500).send(e?.message ? String(e.message) : "Render error");
   }
 }
