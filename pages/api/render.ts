@@ -1,3 +1,5 @@
+import fs from "fs";
+
 import type { NextApiRequest, NextApiResponse } from "next";
 import sharp from "sharp";
 import path from "path";
@@ -26,6 +28,12 @@ function wrapText(text: string, maxCharsPerLine: number) {
   if (line) lines.push(line);
   return lines;
 }
+
+const fontPath = path.join(process.cwd(), "public", "fonts", "RedHatDisplay-Bold.ttf");
+const fontData = fs.readFileSync(fontPath);
+const fontBase64 = fontData.toString("base64");
+
+
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).send("Method not allowed");
@@ -69,16 +77,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return `
       <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
         <style>
-          .t {
-            font-family: "Red Hat Display", sans-serif;
-            font-weight: 800;
-            font-size: ${fontSize}px;
-            fill: #ffffff;
-            stroke: #000000;
-            stroke-width: 6px;
-            paint-order: stroke fill;
-          }
-        </style>
+  @font-face {
+    font-family: 'RedHatDisplay';
+    src: url(data:font/ttf;base64,${fontBase64}) format('truetype');
+    font-weight: bold;
+  }
+
+  .t {
+    font-family: 'RedHatDisplay', sans-serif;
+    font-weight: bold;
+    font-size: ${fontSize}px;
+    fill: #ffffff;
+    stroke: #000000;
+    stroke-width: 6px;
+    paint-order: stroke fill;
+  }
+</style>
+
         <text class="t" text-anchor="middle" dominant-baseline="middle">
           ${tspans}
         </text>
