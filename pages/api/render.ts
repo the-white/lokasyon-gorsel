@@ -37,10 +37,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const height = meta.height ?? 1080;
 
     const rect = {
-      x: Math.round(width * 0.10),
+      x: Math.round(width * 0.20),
       y: Math.round(height * 0.88),
       w: Math.round(width * 0.60),
-      h: Math.round(height * 0.08),
+      h: Math.round(height * 0.16),
     };
 
     let fontSize = 64;
