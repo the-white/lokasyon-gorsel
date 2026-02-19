@@ -5,7 +5,7 @@ export const provinces = [
 ];
 
 export const districts: Record<number, { id: number; name: string }[]> = {
-   06: [
+  6: [
     { id: 601, name: "Eryaman" },
     { id: 602, name: "Balgat" },
   ],
@@ -17,5 +17,4 @@ export const districts: Record<number, { id: number; name: string }[]> = {
     { id: 3401, name: "Kadıköy" },
     { id: 3402, name: "Üsküdar" },
   ],
-  
 };
