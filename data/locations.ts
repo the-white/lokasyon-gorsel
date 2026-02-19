@@ -1,13 +1,13 @@
 export const provinces = [
-  { id: 06, name: "Ankara" },
+  { id: 6, name: "Ankara" },
   { id: 10, name: "Balıkesir" },
   { id: 34, name: "İstanbul" },
 ];
 
 export const districts: Record<number, { id: number; name: string }[]> = {
    06: [
-    { id: 0601, name: "Eryaman" },
-    { id: 0602, name: "Balgat" },
+    { id: 601, name: "Eryaman" },
+    { id: 602, name: "Balgat" },
   ],
   10: [
     { id: 1001, name: "Karesi" },
