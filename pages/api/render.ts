@@ -10,8 +10,8 @@ function getLocationText(provinceId: number, districtId: number) {
   return d || p || "Seçim yok";
 }
 
-function escapeXml(unsafe: string) {
-  return unsafe
+function escapeXml(str: string) {
+  return str
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
@@ -30,18 +30,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const text = getLocationText(pid, did);
 
-    const templatePath = path.join(
-      process.cwd(),
-      "public",
-      "templates",
-      "template.png"
-    );
+    const templatePath = path.join(process.cwd(), "public", "templates", "template.png");
 
     const meta = await sharp(templatePath).metadata();
     const width = meta.width ?? 1080;
     const height = meta.height ?? 1080;
 
-    // Yazı alanı (alt orta)
     const rect = {
       x: Math.round(width * 0.10),
       y: Math.round(height * 0.88),
@@ -49,18 +43,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       h: Math.round(height * 0.08),
     };
 
-    // Font boyutu
     let fontSize = 64;
     if (text.length > 20) fontSize = 56;
     if (text.length > 26) fontSize = 48;
     if (text.length > 32) fontSize = 42;
 
-    // Siyah yazı
+    // Yazıyı SADECE kutu boyutunda üret
     const textPng = await sharp({
       text: {
-        text: `<span foreground="black" size="${fontSize * 1000}" font_family="Red Hat Display" weight="700">${escapeXml(
-          text
-        )}</span>`,
+        text: `<span foreground="black" size="${fontSize * 1000}" font_family="Red Hat Display" weight="700">${escapeXml(text)}</span>`,
         rgba: true,
         width: rect.w,
         height: rect.h,
@@ -70,7 +61,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .png()
       .toBuffer();
 
-    // Debug alanı (yeşil çerçeve)
+    // Debug çerçeve
     const debugRectSvg = `
       <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
         <rect x="${rect.x}" y="${rect.y}" width="${rect.w}" height="${rect.h}"
@@ -87,10 +78,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .toBuffer();
 
     res.setHeader("Content-Type", "image/png");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="gorsel-${pid}-${did}.png"`
-    );
     res.status(200).send(out);
   } catch (err) {
     console.error(err);
