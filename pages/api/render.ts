@@ -83,15 +83,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     font-weight: bold;
   }
 
-  .t {
-    font-family: 'RedHatDisplay', sans-serif;
-    font-weight: bold;
-    font-size: ${fontSize}px;
-    fill: #ffffff;
-    stroke: #000000;
-    stroke-width: 6px;
-    paint-order: stroke fill;
-  }
+ .t {
+  font-family: 'RedHatDisplay', sans-serif;
+  font-weight: bold;
+  font-size: ${fontSize}px;
+  fill: #ffffff;
+}
 </style>
 
         <text class="t" text-anchor="middle" dominant-baseline="middle">
