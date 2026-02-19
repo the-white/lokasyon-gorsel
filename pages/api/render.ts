@@ -43,9 +43,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const rect = {
     x: Math.round(width * 0.08),
-    y: Math.round(height * 0.78),
+    y: Math.round(height * 0.85),
     w: Math.round(width * 0.84),
-    h: Math.round(height * 0.16),
+    h: Math.round(height * 0.10),
   };
 
   const fontSizes = [64, 56, 48, 42];
