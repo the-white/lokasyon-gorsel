@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { provinces, districts } from "../src/data/locations";
+import { provinces, districts } from "../data/locations";
 
 export default function Home() {
   const [provinceId, setProvinceId] = useState<number>(provinces[0].id);
