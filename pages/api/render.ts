@@ -39,7 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const rect = {
       x: Math.round(width * 0.10),
       y: Math.round(height * 0.88),
-      w: Math.round(width * 0.80),
+      w: Math.round(width * 0.60),
       h: Math.round(height * 0.08),
     };
 
