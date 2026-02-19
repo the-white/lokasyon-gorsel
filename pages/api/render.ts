@@ -29,7 +29,7 @@ function wrapText(text: string, maxCharsPerLine: number) {
   return lines;
 }
 
-const fontPath = path.join(process.cwd(), "public", "fonts", "RedHatDisplay-Bold.ttf");
+const fontPath = path.join(process.cwd(), "public/fonts/RedHatDisplay-Bold.ttf");
 const fontData = fs.readFileSync(fontPath);
 const fontBase64 = fontData.toString("base64");
 
