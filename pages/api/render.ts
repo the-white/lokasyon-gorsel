@@ -38,7 +38,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const pid = Number(req.body?.provinceId);
     const did = Number(req.body?.districtId);
-    if (!Number.isFinite(pid) || !Number.isFinite(did)) return res.status(400).send("Geçersiz il/ilçe");
+    if (!Number.isFinite(pid) || !Number.isFinite(did)) {
+      return res.status(400).send("Geçersiz il/ilçe");
+    }
 
     const text = getLocationText(pid, did);
 
@@ -55,73 +57,78 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       h: Math.round(height * 0.08),
     };
 
-    // Font dosyası (Bold)
+    // Debug çerçeve
+    const debugRectSvg = `
+      <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+        <rect x="${rect.x}" y="${rect.y}" width="${rect.w}" height="${rect.h}"
+              fill="none" stroke="#00FF00" stroke-width="6"/>
+      </svg>
+    `;
+
     const fontFile = path.join(process.cwd(), "public/fonts/RedHatDisplay-Bold.ttf");
     if (!fs.existsSync(fontFile)) {
-      return res.status(500).send("Font bulunamadı: public/fonts/RedHatDisplay-Bold.ttf");
+      return res.status(500).send("Font bulunamadı");
     }
 
-    // 1-2 satır
+    const fontBase64 = fs.readFileSync(fontFile).toString("base64");
+
     let lines = text.length > 16 ? wrapText(text, 16).slice(0, 2) : [text];
     if (lines.length > 2) lines = lines.slice(0, 2);
 
-    // font boyutu (basit)
     const fontSizes = [64, 56, 48, 42];
     let fontSize = fontSizes[0];
     if (text.length > 20) fontSize = fontSizes[1];
     if (text.length > 26) fontSize = fontSizes[2];
     if (text.length > 32) fontSize = fontSizes[3];
 
-    // Pango ile text render: font’u "dosyadan" base64 embed ediyoruz (Pango bunu düzgün çözüyor)
-    const fontBase64 = fs.readFileSync(fontFile).toString("base64");
-
     const pangoSvg = `
       <svg width="${rect.w}" height="${rect.h}" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <style type="text/css">
+          <style>
             @font-face {
               font-family: 'RedHatDisplay';
-              src: url("data:font/ttf;base64,${fontBase64}") format("truetype");
+              src: url(data:font/ttf;base64,${fontBase64}) format('truetype');
               font-weight: 700;
             }
           </style>
         </defs>
 
-        <!-- Arka plan şeffaf, sadece yazı -->
-        <rect x="0" y="0" width="${rect.w}" height="${rect.h}" fill="transparent"/>
+        <rect width="100%" height="100%" fill="transparent"/>
 
-        <text x="${Math.round(rect.w / 2)}" y="${Math.round(rect.h / 2)}"
-              text-anchor="middle" dominant-baseline="middle"
+        <text x="${rect.w / 2}" y="${rect.h / 2}"
+              text-anchor="middle"
+              dominant-baseline="middle"
               font-family="RedHatDisplay"
-              font-weight="700"
               font-size="${fontSize}"
+              font-weight="700"
               fill="#ffffff"
               stroke="#000000"
               stroke-width="6"
               paint-order="stroke fill">
           ${lines.map((ln, i) => {
             const dy = (i - (lines.length - 1) / 2) * Math.round(fontSize * 1.15);
-            return `<tspan x="${Math.round(rect.w / 2)}" dy="${i === 0 ? dy : Math.round(fontSize * 1.15)}">${escapeXml(ln)}</tspan>`;
+            return `<tspan x="${rect.w / 2}" dy="${i === 0 ? dy : Math.round(fontSize * 1.15)}">${escapeXml(ln)}</tspan>`;
           }).join("")}
         </text>
       </svg>
     `;
 
-    // Text overlay’i ayrı render et (şeffaf PNG)
     const textPng = await sharp(Buffer.from(pangoSvg))
       .png()
       .toBuffer();
 
-    // Template üzerine bas
     const out = await sharp(templatePath)
-      .composite([{ input: textPng, top: rect.y, left: rect.x }])
+      .composite([
+        { input: Buffer.from(debugRectSvg), top: 0, left: 0 },
+        { input: textPng, top: rect.y, left: rect.x }
+      ])
       .png({ compressionLevel: 9 })
       .toBuffer();
 
     res.setHeader("Content-Type", "image/png");
-    res.setHeader("Content-Disposition", `attachment; filename="gorsel-${pid}-${did}.png"`);
     res.status(200).send(out);
+
   } catch (e: any) {
-    res.status(500).send(e?.message ? String(e.message) : "Render error");
+    res.status(500).send(e?.message || "Render error");
   }
 }
