@@ -21,11 +21,13 @@ export default function Home() {
       body: JSON.stringify({ provinceId, districtId }),
     });
 
-    if (!res.ok) {
-      alert("Render başarısız");
-      setLoading(false);
-      return;
-    }
+   if (!res.ok) {
+  const t = await res.text().catch(() => "");
+  alert("Render başarısız: " + t);
+  setLoading(false);
+  return;
+}
+
 
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
