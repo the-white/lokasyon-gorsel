@@ -70,7 +70,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
         <style>
           .t {
-            font-family: Arial, sans-serif;
+            font-family: "Red Hat Display", sans-serif;
             font-weight: 800;
             font-size: ${fontSize}px;
             fill: #ffffff;
